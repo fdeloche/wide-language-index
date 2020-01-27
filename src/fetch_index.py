@@ -188,21 +188,24 @@ async def download_and_validate(url, checksum, dest_file):
 
 async def download(url):
     try:
-        resp = await aiohttp.request('GET', url)
-    except aiohttp.errors.ClientOSError:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                status = resp.status
+                if status != 200:
+                    resp.close()
+                    raise DownloadError('got HTTP {0} downloading {1}'.format(
+                        status,
+                        url,
+                    ))
+                data = await resp.read()
+                return data
+
+    except aiohttp.ClientError as err:
+        print(err)
         raise DownloadError('could not connect downloading {}'.format(
             url,
         ))
 
-    status = resp.status
-    if status != 200:
-        resp.close()
-        raise DownloadError('got HTTP {0} downloading {1}'.format(
-            status,
-            url,
-        ))
-    data = await resp.read()
-    return data
 
 
 if __name__ == '__main__':
